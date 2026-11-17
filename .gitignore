@@ -22,7 +22,5 @@ logs/
 logs_proxy/
 prompts/
 last_query.json
-test_data/
-temp_*.jpg
 frame*.jpg
 image_generator_tmp.png
