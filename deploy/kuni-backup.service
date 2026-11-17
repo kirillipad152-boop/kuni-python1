@@ -1,0 +1,14 @@
+[Unit]
+Description=Private daily Kuni recovery archive
+
+[Service]
+Type=oneshot
+User=ubuntu
+UMask=0077
+WorkingDirectory=/home/ubuntu/kuni-py
+ExecStart=/home/ubuntu/kuni-py/.venv/bin/python -m kuni.backup --destination /home/ubuntu/kuni-backups
+TimeoutStartSec=10min
+Restart=on-failure
+RestartSec=30min
+NoNewPrivileges=true
+PrivateTmp=true

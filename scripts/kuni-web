@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Open the owner-only Kuni panel: an SSH tunnel to the server's 127.0.0.1 port plus an automatic sign-in.
+# Nothing is exposed to the internet; closing this script (Ctrl-C) closes the tunnel.
+# Settings (KUNI_BACKUP_HOST / KUNI_BACKUP_KEY) come from ~/.config/kuni-backup.env, the token from
+# ~/.config/kuni-web/token (chmod 600). `kuni-web --phone` prints a QR code for the phone (needs Tailscale, see README). Optional: KUNI_WEB_LOCAL_PORT (default 18765), KUNI_WEB_REMOTE_PORT (8765).
+set -euo pipefail
+
+env_file="${KUNI_WEB_ENV:-$HOME/.config/kuni-backup.env}"
+token_file="${KUNI_WEB_TOKEN:-$HOME/.config/kuni-web/token}"
+local_port="${KUNI_WEB_LOCAL_PORT:-18765}"
+remote_port="${KUNI_WEB_REMOTE_PORT:-8765}"
+
+[ -r "$token_file" ] || { echo "Missing token file $token_file" >&2; exit 1; }
+[ "$(stat -c %a "$token_file")" = 600 ] || { echo "Token file must be chmod 600" >&2; exit 1; }
+
+if [ "${1:-}" = "--phone" ]; then
+    # Phone over Tailscale: print a QR code with the panel link and the token (in the URL fragment, which browsers never
+    # send to a server). Scan it with the phone camera while the phone is connected to your tailnet.
+    phone_file="${KUNI_WEB_PHONE_URL:-$HOME/.config/kuni-web/phone-url}"
+    [ -r "$phone_file" ] || { echo "Put the panel's tailnet URL (e.g. http://kuni.tailXXXX.ts.net) in $phone_file" >&2; exit 1; }
+    python="$(dirname "$(readlink -f "$0")")/../.venv/bin/python"
+    echo "Scan with the phone camera (the QR contains your access token: do not photograph or share it):"
+    printf '%s/#%s' "$(tr -d '\n' < "$phone_file" | sed 's#/*$##')" "$(tr -d '\n' < "$token_file")" |
+        "$python" -c 'import qrcode, sys; q = qrcode.QRCode(border=1); q.add_data(sys.stdin.read()); q.make(); q.print_ascii(invert=True)'
+    exit 0
+fi
+
+[ -r "$env_file" ] || { echo "Missing $env_file (KUNI_BACKUP_HOST and KUNI_BACKUP_KEY)" >&2; exit 1; }
+# shellcheck disable=SC1090
+. "$env_file"
+: "${KUNI_BACKUP_HOST:?}" "${KUNI_BACKUP_KEY:?}"
+
+ssh -N -L "127.0.0.1:${local_port}:127.0.0.1:${remote_port}" -i "$KUNI_BACKUP_KEY" \
+    -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 "$KUNI_BACKUP_HOST" &
+tunnel=$!
+trap 'kill "$tunnel" 2>/dev/null || true' EXIT INT TERM
+
+for _ in $(seq 1 30); do
+    (exec 3<>"/dev/tcp/127.0.0.1/${local_port}") 2>/dev/null && break
+    kill -0 "$tunnel" 2>/dev/null || { echo "The SSH tunnel did not start" >&2; exit 1; }
+    sleep 0.5
+done
+
+url="http://127.0.0.1:${local_port}/"
+echo "Kuni panel: $url   (Ctrl-C closes the tunnel)"
+# The token travels in the URL fragment: browsers never send it to the server, and the page removes it at once.
+xdg-open "${url}#$(tr -d '\n' < "$token_file")" >/dev/null 2>&1 || echo "Open $url and paste the token from $token_file"
+wait "$tunnel"

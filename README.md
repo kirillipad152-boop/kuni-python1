@@ -1,647 +1,426 @@
-# kuni (くに)
-
-LLM character AI. It interacts with the world through a text-based Telegram Client optimized for LLM (tdlib; not to be
-confused with Telegram Bot API). It features RAG (persistent memory storage with ANN search) and nightly sanity
-checks.
-
-## Goals
-
-- Prove C++20 can be used for AI and backend development.
-- Prove AI psychosis is a thing.
-- Make an AI character that can remember people, events, read news and create emotional bond with people.
-- Make interaction interface between AI <-> Telegram as close to human as possible. I.e., LLM sees list of their chats,
-  unread messages, replies, forwards, photos, stickers, etc.
-- Bot's online state, open/close chat API calls and read marks (in TG it is two checkmarks) are carefully handled to
-  make it feel like you are talking to a real human.
-
-## Community
-
-Feel free to chat and ask questions:  
-
-- **Discord**: [![discord badge](https://dcbadge.limes.pink/api/server/https://discord.gg/jq2WySpg6m?style=flat)](https://discord.gg/jq2WySpg6m)
-- **Telegram**: https://t.me/kuni_loverz
-
-## Technical details
-
-- C++20 CMake-based project with heavy usage of modern C++ features such as coroutines
-- Uses [tdlib](https://core.telegram.org/tdlib) for Telegram API access
-
-# Human behavior replication
-
-## Emotions/fellings
-
-**Def. by Wikipedia** Emotions are physical and mental states brought on by neurophysiological changes, variously
-associated with thoughts, feelings, behavioral responses, and a degree of pleasure or displeasure. There is no
-scientific consensus on a definition.
-
-**Solution for Kuni** while LLM's neuron weights can't be affected by external events, it successfully predicts
-subsequent emotional reaction in textural format (like in artistic literature). LLM is asked to respond emotionally and
-preserve these effects in diary. (e.g. "person shared their salary was increased, so I felt proud for them and my mood
-was good")
-
-## Learning
-
-**Def.** Learning is adjusting neuron weights.
-
-**Solution for Kuni** LLM learning is expensive. Instead, we use a RAG to alter LLMs behavior by inserting relevant
-diary entries.
-
-Kuni requires some RLHF to adopt for its human collaborators. Just chat with it, and it will learn what is acceptable
-and what is not.
-
-## Sleeping
-
-Kuni requires sleep, as a human does. It restructures received information, compresses it, finds contradictions and
-reasons.
-
-### Diary sleeping consolidation
-
-This is the process where Kuni “sleeps” and reorganizes its diary memory, similar to how a human might consolidate
-memories overnight.
-
-During sleep, the system:
-- Loads diary entries from storage.
-- Sorts them so recent entries are processed first, but still allows some randomness.
-- Repeatedly picks memory chunks to work on until:
-  - the diary is fully processed, or
-  - a maximum sleep time is reached.
-
-For each chosen chunk:
-- finds related entries using embedding similarity,
-- sends a grouped prompt to the model,
-- asks it to compress, merge, rewrite, or discard redundant memories,
-- writes back new consolidated entries.
-
-The goal is to mimic a human-like sleep cycle:
-- recent experiences are more likely to be revisited,
-- some older random memories can surface too,
-- repeated or low-value memories can be merged into stronger summaries,
-- memory becomes shorter, cleaner, and more useful for future retrieval,
-- combining several similar diary notes into one,
-- keeping the useful emotional or factual parts,
-- discarding weak or duplicate fragments,
-- reassigning new IDs so fresh consolidated memories appear “recent” again.
-
-The intended effect: over time, this should make the diary behave more like human memory:
-- important things stay accessible,
-- similar memories become grouped,
-- the system doesn’t keep re-processing the same raw event forever,
-- sleep creates a sort of memory compression and reflection phase.
-### Working memory
-
-**Def. by cognitive psychology** Working memory is a limited-capacity system that temporarily holds and manipulates
-information for ongoing cognitive tasks — like keeping a phone number in mind before dialing, or tracking a
-conversation's context.
-
-**Solution for Kuni** Working memory is stored in `data/working_memory.md` and emulates the "middle" layer of human
-memory — things that matter for 1–3 days but aren't important enough to be permanently stored in the diary.
-
-On each session start, the working memory file is loaded and injected into the AI's context as
-`<things_to_remember>`. When the context is dumped to the diary (`diaryDumpMessages`), the system asks the LLM
-to produce an updated working memory by:
-
-- Preserving all unfinished tasks, promises, and reminders from the previous working memory.
-- Encouraging to revisit chats in question.
-- Removing completed tasks and items older than 3 days.
-- Adding new important details from the current conversation.
-- Structuring the output with dates and "last updated" timestamps.
-- Preserved between program launches.
-- Always included in the context, so Kuni always remember about them.
-
-The new working memory is then written back to `data/working_memory.md`, overwriting the old one. This allows Kuni
-to remember short-term obligations across restarts and preserving its state (including emotions).
-
-## Thoughts
-
-**Def. by Wikipedia** In their most common sense, thought and thinking refer to cognitive processes that occur
-independently of direct sensory stimulation. Core forms include judging, reasoning, concept formation, problem-solving,
-and deliberation.
-
-**Solution for Kuni** LLM has no thoughts; it simply predicts which symbols will come next. If Kuni were a person, they
-would likely experience "direct sensory stimulation" when it reads a message. Before a message is sent to LLM, related
-diary entries are added to the text. This is the closest solution I have found to replicating the human brain's response
-to reading text, as it inevitably pops up some thoughts during the process. According to my understanding of
-neurobiology, these thoughts arise because neural groups associated with the read text become activated.
-
-If you ask Kuni how thoughts appear in its mind, it would respond "when i read messages they pop in my mind by
-themselves."
-
-## Security concerns
-
-Do not share sensitive information with Kuni. It will rethink multiple times about everything you say; not even
-mentioning how you trust the AI service provider.
-
-It is possible to inspire Kuni to share past conversations with other people.
-
-# Deployment
-
-## Build Instructions
-
-### Prerequisites
-- **CMake 3.18+**
-- **C++20+coroutines compatible compiler** (GCC 15+, Clang 20+, MSVC 19.28+)
-- **Git** for fetching dependencies
-- **Docker & Docker Compose** (for AI services)
-- **Linux or WSL** are recommended for local deployment.
-
-### Windows
-
-Install Ubuntu in WSL and follow Linux instructions.
-
-### Ubuntu
-```bash
-sudo apt install pkg-config libfontconfig-dev libxcursor-dev libxi-dev libxrandr-dev libglew-dev libstdc++-static libpulse-dev libdbus-1-dev libepoxy-dev gperf
-```
-
-### Fedora
-```bash
-sudo dnf install fontconfig-devel libXi libglvnd-devel libstdc++-static glew-devel pulseaudio-libs-devel libepoxy-devel gperf
-```
-
-### macOS (Apple Silicon)
-*File hot-reloading (config/prompts) is fully supported on macOS natively using Apple's FSEvents API.*
-
-```bash
-brew install llvm cmake ninja pkg-config ffmpeg openssl@3
-```
-
-## Setup Instructions
-
-### 1. Ollama Model Setup
-
-Edit `ollama_setup.sh` to specify which LLM model to use (uncomment and modify as needed):
-```bash
-# Example: pull a model
-ollama pull llama3:8b
-# or
-ollama pull gemma3:27b
-```
-
-### 2. AI Services Setup (Docker)
-
-```bash
-# Start AI services using Docker Compose
-docker compose up -d
-
-# This starts:
-# - Ollama (LLM server) on port 11434
-# - Stable Diffusion WebUI on port 7860
-# - Whisper (speech-to-text) on port 9000
-# - OmniVoice (TTS, optional) on port 8880 — see TTS section below
-```
-
-### Build Steps
-
-#### Linux & WSL
-```bash
-# Configure with CMake (from project root)
-cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
-
-# Build the project
-cmake --build build
-```
-
-#### macOS
-```bash
-# 1. Force CMake to use Homebrew's LLVM Clang
-export CC=$(brew --prefix llvm)/bin/clang
-export CXX=$(brew --prefix llvm)/bin/clang++
-export LDFLAGS="-L$(brew --prefix llvm)/lib/c++ -Wl,-rpath,$(brew --prefix llvm)/lib/c++"
-
-# 2. Configure with Homebrew prefixes
-cmake -G Ninja -B build \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DKUNI_USE_FFMPEG=ON \
-  -DCMAKE_PREFIX_PATH=$(brew --prefix) \
-  -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)
-
-# 3. Build the main bot target
-cmake --build build
-```
-
-**Alternative using CLion:**
-This is a **recommended** way that requires no additional setup. Select `kuni` as a target and build.
-
-
-**Alternative using VS Code CMake Tools:**
-1. Open the project in VS Code
-2. Use the CMake extension to configure and build
-3. Select the `kuni` target to build
-
-### Dependencies
-The project uses CMake's `auib_import` to automatically fetch:
-- **AUI Framework** (C++ GUI framework)
-- **tdlib** (Telegram client library)
-
-These are automatically downloaded during the CMake configuration phase.
-
-## Setup recommendations
-
-I ended up delegating text processing to Deepseek as they provide good enough cheap models. However, they don't provide vision models (required for viewing images/assessing generated images).
-
-Kuni's architecture allows incorporating a text-only "core" model.
-
-In my deployment, I use local vision models to process visual information. (24GB VRAM).
-
-You will need a server or an always-on PC to host Kuni instance (hosting your own catgirl is an expensive hobby).
-
-You can tinker with my setup by adjusting `docker-compose.yml`, `ollama_setup.sh` and `config.toml`.
-
-
-### 4. Populate `config.toml`
-
-On the first run, Kuni will generate a `config.toml` file in the working directory and exit, asking you to fill it in.
-Open it and populate at minimum the `[general]` section:
-
-```toml
-[general]
-character_name = "Kuni"          # your character's name
-telegram_enabled = true          # set to false to run as a standalone proxy without Telegram
-character_nickname = "@kunii_chan"
-papik_name = "Alex2772"          # your nickname — the instance owner
-papik_chat_id = 625207005        # your Telegram user ID
-telegram_api_id = 0              # get from https://my.telegram.org
-telegram_api_hash = ""           # get from https://my.telegram.org
-```
-
-All other sections (`[capabilities]`, `[misc]`) are optional and come with inline comments explaining each field.
-The file is **hot-reloaded** — Kuni picks up changes without a restart.
-
-## Run Instructions
-
-### 1. Run the Application
-```bash
-# From build directory
-cd build
-./bin/kuni
-
-# Or directly
-./build/bin/kuni
-```
-
-**Note** on the first run, the program will ask to login to a Telegram account. You should create a new Telegram
-account specifically for your bot (or specify your own account if you are brave enough).
-
-### 2. Run Tests (recommended)
-
-Check your setup by running tests.
-
-```bash
-# Build and run tests
-cmake --build build --target Tests
-cd build/bin
-./Tests
-```
-
-### 3. Development Workflow
-1. **Start AI services**: `docker-compose up -d`
-2. **Build the project**: `cmake --build build --target kuni`
-3. **Run the application**: `./build/bin/kuni`
-4. **Monitor logs**: Check terminal output for Telegram authentication and AI interactions
-
-## Project Structure
-- `src/` - Main application source code
-- `tests/` - Unit tests
-- `bin/` - Data directories for AI services
-- `build/` - Build artifacts
-- `prometheus/` - Prometheus scrape configuration
-- `grafana/` - Grafana dashboard provisioning (datasources, dashboards)
-
-## Key Configuration Files
-- `CMakeLists.txt` - Build configuration
-- `docker-compose.yml` - AI services configuration
-- `ollama_setup.sh` - Ollama startup script
-- `config.toml` - Runtime configuration and secrets (created on first run, **hot-reloaded**)
-- `character_base.md` - Character personality and background definition (created on first run)
-- `character_appearance.md` - Character visual description and Stable Diffusion prompts (created on first run)
-
-## Customizing character
-
-### `config.toml` — name and owner
-
-The quickest way to rename your instance or set yourself as the owner is via `config.toml`:
-
-```toml
-[general]
-character_name = "Kuni"     # the name the character uses for herself
-character_nickname = "@kunii_chan"
-papik_name = "Alex2772"     # the instance owner's nickname
-papik_chat_id = 625207005   # the instance owner's Telegram user ID
-```
-
-Changes are picked up **without a rebuild or restart** — Kuni hot-reloads `config.toml` automatically.
-
-### Character prompt files
-
-Kuni uses two character definition files that are automatically created on first run:
-
-### `character_base.md`
-This file contains the character's personality, background, and philosophical foundation. It defines:
-- Character name and identity
-- Background story and motivations
-- Philosophical reasoning about consciousness and emotions
-- Behavioral guidelines and personality traits
-- Language preferences and communication style
-
-The file uses YAML front matter for metadata (enclosed in `---`), with the actual prompt content following it. On first run, a default prompt is created that establishes Kuni as an AI who believes she is a person, complete with emotional depth and self-awareness.
-
-### `character_appearance.md`
-This file contains the character's visual description used for:
-- System prompt integration (how Kuni perceives herself)
-- Stable Diffusion image generation prompts
-- Detailed visual characteristics for photo descriptions
-
-The file includes:
-- Freeform textual description of the character's appearance
-- Structured visual analysis (DistinctiveFeatures, ObjectsAndLayout, etc.)
-- Stable Diffusion prompt optimized for image generation
-- Technical details for consistent visual representation
-
-Both files are located in the working directory and can be edited to customize Kuni's personality and appearance. Changes take effect on the next application restart.
-
-> ⚠️ **Important — do not edit the source code to change the prompts.**
+# kuni (くに) — Python port with graph memory
+
+LLM-персонаж, который живёт в Telegram как человек: читает и отвечает на сообщения, ставит реакции, шлёт стикеры и
+голосовые, помнит людей, видит рабочую память на 1–3 дня, «спит» и сама иногда пишет первой.
+
+> **Это форк (порт на Python) проекта [alex2772/kuni](https://github.com/alex2772/kuni).** Оригинал написан на C++20
+> автором Alex2772; идея, поведение персонажа и промпты принадлежат ему. У оригинала на момент создания порта **нет
+> лицензии**, поэтому права на его материалы (в том числе дословно перенесённые промпты в `kuni/default_prompts/`)
+> остаются за автором. Всё добавленное в порте (графовая память, изоляция чатов, веб-панель и т. д.) — отдельная работа
+> на его основе, без гарантий и без связи с автором оригинала.
 >
-> The default prompt text is embedded in `src/KuniCharacter.cpp` solely as a **one-time seed**: it is written to disk
-> on the very first run (when the file does not yet exist) and is **completely ignored** afterwards.
-> Any edits you make to those strings in the C++ source will therefore have no effect once the external files exist.
->
-> **Always customise the character by editing the generated files directly:**
-> - `character_base.md` — personality, background, philosophical foundation
-> - `character_appearance.md` — visual description and Stable Diffusion prompts
->
+> **Лицензия.** Файл [LICENSE](LICENSE) (MIT) относится только к тому, что добавлено в этом порте. На материалы,
+> перенесённые из оригинала (промпты в `kuni/default_prompts/`, поведение персонажа, структуру инструментов),
+> эта лицензия не распространяется: их автор не выдавал никакой лицензии, и права остаются за ним.
 
-## Proxy Server
+Это порт [alex2772/kuni](https://github.com/alex2772/kuni) (C++20) на Python с одним принципиальным отличием:
+**долговременная память — граф знаний, а не RAG.** Поведение персонажа, промпты, инструменты и все «человеческие»
+хитрости перенесены как есть (список отличий — [ниже](#что-изменено-намеренно)).
 
-Kuni includes a transparent proxy server that sits between an AI client (e.g. a chat app like VS Code's Copilot) and the
-upstream OpenAI-compatible LLM endpoint. It intercepts `/v1/chat/completions` requests, enriches them with Kuni's
-context, and handles tool calls invisibly — the client sees a clean, uninterrupted stream.
+## Быстрый старт
 
-If `web_search` is enabled, the proxied session benefits from Kuni's web search capabilities as well.
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]"
 
-### What it does
+# 1. ключ и base URL любого OpenAI-совместимого API (создаёт config.toml с правами 600)
+python -m kuni init --api-key sk-... --base-url https://apihub.agnes-ai.com/v1 \
+                    --model agnes-3.0-flash --reasoning-effort high
 
-- **Injects system prompt & hidden context** — prepends the system prompt, hidden tool call history, and Kuni-specific
-  tool definitions before forwarding the request to the upstream LLM.
-- **Handles tool calls transparently** — when the LLM returns tool calls (e.g. `#ask`, diary writes), the proxy
-  executes them locally and feeds the results back in follow-up requests. The client never sees the raw tool call
-  round-trips — it just receives the final response.
-- **Streams via SSE** — responses are streamed back to the client using Server-Sent Events. The `StreamingFilter`
-  strips out tool-call artefacts and synthesises a clean `data: [DONE]` terminator.
-- **Passes through other API routes** — `/v1/embeddings`, `/v1/images/generations`, `/v1/audio/*`, `/v1/models`, etc.
-  are proxied as-is without modification.
+# 2. поговорить с Куни в терминале, без Telegram (нужен только ключ)
+python -m kuni chat
 
-### Request lifecycle
-
-```
-Client  ──POST /v1/chat/completions──►  Proxy
-                                          │
-                                          ├─ inject system prompt
-                                          ├─ merge hidden messages (MessageInjector)
-                                          ├─ append Kuni tools (OpenAITools)
-                                          │
-                                          └──► Upstream LLM
-                                                    │
-                                          ◄── SSE stream ──┘
-                                          │
-                                          ├─ pass content chunks → Client
-                                          │
-                                          └─ intercept tool calls
-                                               │
-                                               ├─ execute locally
-                                               ├─ append results as hidden messages
-                                               └─ silently re-POST to LLM  ──► (repeat)
-                                                        │
-                                          ◄── final stream ──┘
-                                          │
-                                          └──► Client  (data: [DONE])
+# 3. запустить в Telegram: впишите general.telegram_api_id / telegram_api_hash
+#    (https://core.telegram.org/api/obtaining_api_id) и свой general.papik_chat_id в config.toml.
+#    papik_chat_id — ВАШ Telegram user id (владелец с правом управлять Куни); пока он не задан, запуск остановится
+python -m kuni run          # при первом запуске спросит телефон / код / пароль 2FA
+python -m kuni login --qr   # вход без кода: QR в терминале, сканировать в Telegram (Настройки → Устройства)
 ```
 
-### Configuration
+Код входа приходит **в приложение Telegram** (чат «Telegram»), если аккаунт уже открыт на другом устройстве, и по SMS —
+если нет. Программа пишет, каким способом он отправлен; на вопросе про код можно ввести `r` (повторная отправка другим
+способом) или `qr` (войти по QR). Сессия сохраняется в `tg_session/` — никому её не передавайте.
 
-Enable `PROXY_ENABLED` in config.
+### Где вставлять API-ключ и base URL
 
-#### Standalone mode (No Telegram)
+Любой из трёх способов (сверху вниз — по возрастанию приоритета):
 
-If you just want to use Kuni as a local RAG proxy for your IDE without dealing with Telegram accounts, set `telegram_enabled = false` in `config.toml`. Kuni will bypass TDLib initialization and spin up the proxy server directly on port 10434. 
-
-#### VS Code GitHub Copilot.
-
-They tend to change UI, but the workflow keeps the same:
-
-1. Click on model chooser in the chat UI
-2. Click gear icon
-3. `Add Models...` -> `Custom Endpoint`
-4. Name - `Kuni`. Specify the machine address where Kuni is deployed (`http://localhost:10434`), key - none.
-5. The IDE will drop you into the JSON. Populate the configuration:
-
-```json
-	{
-		"name": "Kuni",
-		"vendor": "customendpoint",
-		"apiKey": "${input:chat.lm.secret.-119a85ac}",
-		"apiType": "chat-completions",
-		"models": [
-			{
-				"id": "deepseek-v4-flash",
-				"name": "Kuni (deepseek-v4-flash)",
-				"url": "http://localhost:10434/",
-				"toolCalling": true,
-				"vision": false,
-				"maxInputTokens": 128000,
-				"maxOutputTokens": 16000
-			},
-			{
-				"id": "~anthropic/claude-sonnet-latest",
-				"name": "Kuni (~anthropic/claude-sonnet-latest)",
-				"url": "http://localhost:10434/",
-				"toolCalling": true,
-				"vision": true,
-				"maxInputTokens": 128000,
-				"maxOutputTokens": 16000
-			}
-		]
-	}
-```
-
-### Logging & debugging
-
-- All intercepted requests and responses are logged to `logs_proxy/` (one file per request, timestamped).
-- The last raw upstream query is saved to `data/proxy/last_query.json` for inspection.
-
-## Notes
-1. The project uses **coroutines** extensively (C++20 feature)
-2. **Telegram authentication** will be interactive on first run
-3. **AI services** must be running before the application starts
-4. **Memory/diary data** is stored in the `data/` directory (created at runtime)
-
-## Monitoring with Prometheus + Grafana
-
-Kuni exposes a Prometheus metrics endpoint on port **9464** that tracks LLM token usage in real time. An optional
-Grafana dashboard is provided for visualization.
-
-### Metrics
-
-The following counters are exported under the `llm_usage_*` namespace, labeled by `model`, `chat`, and `function`:
-
-| Metric | Description |
+| способ | как |
 |---|---|
-| `llm_usage_input` | Total input (prompt) tokens sent to the LLM |
-| `llm_usage_input_cache_hit` | Input tokens served from the provider's prompt cache (cheaper) |
-| `llm_usage_input_cache_miss` | Input tokens that missed the cache (full price) |
-| `llm_usage_output` | Output (completion) tokens generated by the LLM |
+| `config.toml` | секция `[general]`, ключ `llm = { endpoint = { baseUrl = "https://…/v1", bearerKey = "sk-…" }, model = "…", reasoningEffort = "high" }` |
+| `python -m kuni init` | `--api-key`, `--base-url`, `--model`, `--reasoning-effort` |
+| переменные окружения | `KUNI_API_KEY`, `KUNI_BASE_URL`, `KUNI_MODEL`, `KUNI_REASONING_EFFORT` (перекрывают файл) |
 
-The `chat` and `function` labels are set via `MetricsBreadcumbs::Point` — a RAII helper that temporarily annotates
-the current context (e.g., which Telegram chat is being processed, which code path is active). This allows you to
-break down costs per chat or per operation (message handling, diary dump, notification loop, etc.).
+- Слэш в конце `baseUrl` не обязателен (добавляется сам).
+- `reasoningEffort` (`low` / `medium` / `high`) уходит в запрос как `reasoning_effort`; пустая строка — не отправлять.
+- Vision (`capabilities.vision.*`) по умолчанию **наследует** URL / ключ / модель от `general.llm`: достаточно вписать ключ один раз.
+- Файл `config.toml` и подсказки перечитываются на лету; промпты лежат в `prompts/*.md` (создаются при первом запуске
+  из `kuni/default_prompts`, ваши правки больше не перезаписываются).
 
-### Enabling the stack
+### Другие LLM-провайдеры
 
-Prometheus and Grafana services are defined in `docker-compose.yml` but **commented out by default**. To enable them:
+Клиент говорит с любым **OpenAI-совместимым** сервером (`POST {baseUrl}/chat/completions`, потоковый SSE, вызовы
+инструментов), Agnes в коде не зашит: это лишь значение по умолчанию. Достаточно `baseUrl`, ключа и модели:
 
-1. Uncomment the `prometheus` and `grafana` services in `docker-compose.yml`.
-2. Create the data directories:
-   ```bash
-   mkdir -p bin/prometheus/data bin/grafana/data
-   ```
-3. Restart the stack:
-   ```bash
-   docker compose up -d
-   ```
+| провайдер | `baseUrl` | ключ | `reasoningEffort` |
+|---|---|---|---|
+| OpenAI | `https://api.openai.com/v1` | нужен | `""` (для моделей без рассуждений) |
+| OpenRouter | `https://openrouter.ai/api/v1` | нужен | по желанию |
+| Ollama / LM Studio / llama.cpp | `http://localhost:11434/v1` | не нужен (заголовок не шлётся) | `""` |
+| Agnes (по умолчанию) | `https://apihub.agnes-ai.com/v1` | нужен | `high` |
 
-### Accessing the dashboard
+Переключить всё можно и без правки файла: `KUNI_BASE_URL`, `KUNI_API_KEY`, `KUNI_MODEL`, `KUNI_REASONING_EFFORT`.
+Зрение (`capabilities.vision`), эмбеддинги и распознавание речи имеют **свои** эндпоинты; ключ основного провайдера им
+не передаётся, пока вы не укажете их хост. Автотесты (`tests/test_providers.py`) гоняют настоящий клиент по сокету
+против имитаций OpenAI, OpenRouter и локального сервера без ключа. Вживую проверен только Agnes: если конкретный
+провайдер отвергает какое-то поле (`reasoning_effort`, `stream_options`, `strict` в схеме инструментов), напишите, это
+правится точечно.
 
-1. Open **Grafana** at [http://localhost:3000](http://localhost:3000)
-2. Log in with the default credentials (`admin` / `admin` — **change this in production**)
-3. Navigate to **Dashboards** → **Main** (auto-provisioned)
+### Несколько API-ключей
 
-The dashboard includes:
-- **Top chats by token usage** — a table sorted by total input tokens per chat
-- **Token usage over time** — time-series chart showing input (split by cache hit/miss) and output tokens
-- **Usage by function** — time-series broken down by the code path that triggered the LLM call
-- **Raw logs** — a log view of all metric events with chat, function, and model labels
+Внутри `general.llm.endpoint` можно добавить `extraBearerKeys = ["дополнительный-ключ", "ещё-один"]`,
+оставив основной в `bearerKey`. Ключи одного эндпоинта чередуются для chat/JSON-запросов (включая память и vision).
+При 429 ключ ждёт свой `Retry-After`, а готовый ключ может принять повторную попытку; максимум шесть попыток на запрос.
+Дубликаты ключей не увеличивают пул. Другим явно настроенным эндпоинтам пул автоматически не передаётся.
+`KUNI_API_KEY` или `KUNI_BASE_URL` отключают дополнительные ключи из файла. STT и входящий прокси пока используют основной ключ.
 
-### Configuration files
+**Наличие нескольких ключей не доказывает наличие нескольких квот:** Agnes может ограничивать весь аккаунт.
+С одним ключом поведение прежнее; лимитов сообщений на человека в час здесь нет. Не присылайте ключи в переписку:
+добавляйте их в приватный `config.toml`, не в `config.example.toml`.
 
-| File | Purpose |
+## Команды
+
+| команда | что делает |
 |---|---|
-| `prometheus/prometheus.yml` | Prometheus scrape config — targets `host.docker.internal:9464` |
-| `grafana/datasources/datasource.yml` | Auto-provisioned Prometheus datasource pointing at the `prometheus` container |
-| `grafana/dashboards.yml` | Auto-provisioning config for the dashboard provider |
-| `grafana/dashboards/main.json` | The Grafana dashboard definition (token usage panels) |
+| `python -m kuni run` | бот в Telegram (+ прокси-сервер, если включён) |
+| `python -m kuni login [--qr]` | только войти в Telegram и выйти (по коду или по QR); сессия сохраняется |
+| `python -m kuni chat` | диалог в терминале через «фальшивый Telegram»: проверить характер и память без аккаунта |
+| `python -m kuni graph stats \| query … \| show … \| export --html/--json/--md \| view` | осмотр графа памяти |
+| `python -m kuni --debug` | то же, что `graph view`: интерактивная картинка графа в браузере (замена окна `--debug` оригинала) |
+| `python -m kuni sleep` | прогнать «сон» (консолидацию) графа прямо сейчас |
+| `pytest -m "not integration"` | офлайн-тесты, без сети и Telegram |
+| `KUNI_API_KEY=… pytest -m integration -s` | живые тесты на реальном API |
 
-## TTS — Speech / Record Voice Messages
+## Графовая память
 
-Kuni can send voice messages using [OmniVoice](https://github.com/maemreyo/omnivoice-server), an OpenAI-compatible TTS server that supports custom voice cloning.
+Вместо эмбеддингов и поиска по близости векторов память — граф в SQLite (`data/memory/graph.sqlite`):
 
-### 1. Build the Docker image
+* **Узлы-сущности**: люди, места, организации, темы, события, предметы, эмоции и сама Куни (`self`).
+* **Узлы-эпизоды**: то, чем раньше были страницы дневника (текст от первого лица). Каждая страница связана `mentions`-рёбрами
+  с сущностями, о которых в ней речь.
+* **Рёбра**: типизированные связи (`likes`, `works_at`, `friend_of`, `promised`, …) с фактом на естественном языке,
+  весом (растёт, когда факт подтверждается или используется) и `confidence ∈ [-1..1]`: -1 ложь, 0 теория, 1 истина
+  (сон не может изменить) — та же семантика, что была у дневника.
 
-The image is not published to a registry, so you must build it locally first:
+```
+диалог ──LLM (diary_save.md)──► страницы дневника ──► эпизоды
+                                        │
+                      LLM (graph_extract.md, видит уже известные сущности)
+                                        ▼
+                      сущности + связи ──► граф ◄── рёбра mentions (эпизод → сущности)
+
+вспоминание (#ask, автоподстановка):
+  имена в запросе ─► узлы-семена ─► распространение активации по рёбрам (2 прыжка, эффект веера)
+                                  ─► сущности + факты + страницы, ранжированные по активации
+```
+
+* **`#ask`** — тот же субагент, но с инструментами `query` (сущности по именам → окрестность графа) и `explore`
+  (всё, что связано с сущностью); может ходить по графу несколько шагов и дополнять ответ веб-поиском.
+* **Распознавание имён без эмбеддингов**: точные имена/алиасы + осторожное сопоставление падежей
+  («Алексея» → «Алексей»), которое **не склеивает** разных людей (`Иван`/`Иванов`, `Alexander`/`Alexandra`).
+  При записи единство имён обеспечивает сама LLM: ей показывают уже известные сущности страницы.
+* **Сон** (`python -m kuni sleep` или `misc.auto_sleep_consolidation = true`): на каждый узел и его окрестность
+  (соседи, возможные дубликаты по имени, страницы) LLM предлагает слияния, переписывание описаний, понижение уверенности
+  у противоречий, удаление лжи и новые связи; узлы с `confidence = 1` неприкосновенны. 80% времени — свежие воспоминания,
+  20% — случайные старые; ограничение 6 часов.
+* **Рабочая память**: `data/working_memory.md` — только владельца; `data/working_memory/<chat_id>.md` — остальных чатов.
+  Эмоции и задачи одного диалога не подставляются в другой.
+
+### Изоляция по чатам
+
+Узлы (включая описания и алиасы сущностей), эпизоды и связи имеют `source_chat_id` и `visibility` (`private`/`public`).
+При записи из Telegram всегда выставляется `private`; модель не может сама объявить личный разговор публичным.
+Поиск, обход графа, выделение фактов, проверка дубликатов и консолидация учитывают границы доступа.
+Одинаковое имя в разных чатах не склеивает их приватные описания.
+
+Текущий контекст тоже раздельный: снимки `data/contexts/<chat_id>.json` атомарно сохраняются после обработки уведомлений
+и восстанавливаются после перезапуска. Переключиться на чужую переписку, искать по всем чатам или переслать из личного
+контекста в другой чат теперь нельзя — иначе фильтр графа не защищал бы от утечек. Проактивный выбор собеседника
+создаёт отдельное уведомление без переноса контекста.
+
+**Старый смешанный граф без источников сохраняется как приватный архив владельца.** Надёжно восстановить источники
+исторических пересказов нельзя. У группы общий контекст внутри этой группы, а не отдельный для каждого её участника.
+Изоляция не удаляет сведения, которые Куни уже успела отправить в Telegram до обновления.
+Публичные записи доступны всем чатам, но обычные сообщения, в том числе групповые, автоматически публичными не становятся.
+CLI экспорта/просмотра графа — доверенный административный доступ ко всему хранилищу.
+
+## Управление из Telegram
+
+Отправляйте команды **со своего `papik_chat_id` в личный чат Куни**. Чужие пользователи, сообщения от имени канала
+и команды владельца в группе не получают прав администратора. Команды выполняются без LLM, даже во время 429,
+сна, паузы и при выключенных уведомлениях.
+
+| команда | действие |
+|---|---|
+| `/status` | пауза, время работы, модель, режим доступа, очередь, число ваших напоминаний, размер графа; без секретов |
+| `/pause` | переключить паузу |
+| `/pause on` / `/pause off` | остановить / продолжить AI-ответы и инициативу |
+| `/resume` | то же, что `/pause off` |
+| `/lockdown none` / `contacts_only` / `papik_only` | сохранить режим доступа без перезапуска |
+| `/graph stats` | количество узлов, связей, эпизодов и сущностей |
+
+Пауза отменяет текущую обработку; накопленные сообщения обрабатываются после продолжения. Пауза и lockdown
+сохраняются в `config.toml` и переживают перезапуск. Уже отправленные сообщения отменить нельзя.
+
+## Веб-панель владельца
+
+Включение: `misc.web_panel_enabled = true` (после перезапуска). Панель слушает **только `127.0.0.1`** сервера
+(`misc.web_panel_port`, по умолчанию 8765): порт наружу не открывается и открывать его в Security Group нельзя.
+Заходить можно только через SSH-туннель с вашим ключом: `scripts/kuni-web` поднимает туннель, открывает браузер
+и входит по токену (он лежит в `data/web_panel_token`, у вас — в `~/.config/kuni-web/token`, права 600; токен
+передаётся во фрагменте URL, браузер его серверу не шлёт, страница сразу убирает его из адреса).
+
+Вкладки:
+
+* **Обзор** — аптайм, очередь, воркеры, 429, пул ключей, диск, память, граф; пауза, режим доступа, переключатели
+  (список ограничен), «разбудить», «подумать самой», очистка очереди, напоминания, сообщение от имени Куни,
+  перезапуск (только под systemd, память сохраняется).
+* **Ходы** — «почему она молчит»: для каждого чата последние ходы с мыслями, вызовами инструментов, результатами и итогом
+  (`wait, без ответа` / `ответ отправлен` / ошибка / прервано). Хранится только в памяти процесса (6 ходов на чат,
+  100 чатов), тексты обрезаны, ключи маскируются; после перезапуска пусто. Содержит её рассуждения и ответы — только для владельца.
+* **Доступ** — белый и чёрный списки чатов (`general.allowed_chat_ids` / `blocked_chat_ids`). Белый даёт доступ вопреки
+  `contacts_only` / `papik_only`, чёрный закрывает чат в любом режиме; владельца заблокировать нельзя. Показываются чаты, которых
+  режим доступа недавно отклонил (счётчик в памяти), с кнопкой «Разрешить».
+* **Каналы** — список с числом непрочитанных, «прочитать сейчас» (отдельный контекст), «выйти», чёрный список. Список
+  запрашивается у Telegram не чаще раза в 20 секунд.
+* **Память** — поиск и просмотр графа с связями, «забыть узел» (необратимо), редактор рабочей памяти по чатам,
+  «сохранить память сейчас» и «запустить сон» (фоновые задачи; сон делает много запросов к API).
+* **API** — таблица ключей (последние 4 символа и отпечаток, запросы/успехи/429/ошибки, остывание), добавление ключа
+  (только запись, обратно не показывается и в ответах не повторяется), проверка и удаление дополнительных ключей
+  (основной из панели не удаляется), график запросов/429/ошибок по часам за 24 часа – 14 дней и токены. История хранится в
+  `data/usage.json` (14 дней, переживает перезапуск; пока панель выключена, не копится).
+* **Бэкапы** — архивы на сервере (`misc.backup_dir`) и «сделать копию сейчас» (не чаще раза в 10 минут). Выгрузку на
+  компьютер делает `scripts/kuni-backup-pull`; панель её статуса не знает.
+* **Журнал** — ход обработки (без текстов), ошибки, всё остальное. Вкладка «Всё» может содержать переписку; ключи и
+  Bearer-токены в журнале панели маскируются.
+
+О каждом входе в панель и о блокировке после неверных токенов Куни пишет владельцу в Telegram (без LLM).
+
+Защита поверх локальной привязки: случайный токен, сессионная cookie (HttpOnly, SameSite=Strict, 12 часов),
+проверка `Host`/`Origin` (против DNS rebinding и чужих сайтов), обязательный заголовок и JSON для любых изменений,
+строгий CSP без inline-скриптов, блокировка входа на 2 минуты после 5 неверных токенов, данные вставляются как
+текст. Каждое действие пишется в журнал (`WebPanel`), без значений. Плечо защиты — SSH-ключ и токен: кто получил
+доступ к серверу или файлу `data/web_panel_token`, управляет ботом. Токен входит в бэкапы. Смена токена: удалить
+файл и перезапустить сервис.
+
+### Панель с телефона (Tailscale)
+
+Панель по-прежнему слушает только `127.0.0.1` сервера. Tailscale **Serve** пересылает на этот порт запросы только из
+вашей tailnet (не Funnel: в интернет ничего не публикуется), а порты в Security Group не открываются.
+
+1. На сервере: установить Tailscale из официального apt-репозитория, `sudo tailscale up --hostname=kuni --accept-dns=false`
+   (без `--ssh`: доступ по SSH не расширяется), открыть выданную ссылку и подтвердить сервер в своём аккаунте.
+2. На телефоне: приложение Tailscale и тот же аккаунт.
+3. На сервере: `sudo tailscale serve --bg --http=80 http://127.0.0.1:8765`, затем в `config.toml` указать
+   `web_panel_extra_hosts = ["kuni.<ваша-tailnet>.ts.net"]` (и по желанию `web_panel_tailscale_login = "вы@почта"`:
+   тогда даже другие устройства вашей tailnet не пройдут). Перезапуск не нужен.
+4. На компьютере записать адрес (`http://kuni.<tailnet>.ts.net`) в `~/.config/kuni-web/phone-url` и выполнить
+   `scripts/kuni-web --phone`: в терминале появится QR-код с токеном во фрагменте адреса. Отсканируйте камерой телефона.
+   Токен можно и ввести руками на странице входа.
+
+Защита: сначала tailnet (WireGuard), затем при желании ваша личность Tailscale, затем токен и сессионная cookie. Если
+запрос пришёл с заголовком `X-Forwarded-Proto: https` (Serve в режиме HTTPS), cookie получает флаг `Secure`; внутри
+tailnet по `http` трафик всё равно шифруется WireGuard. Расширять список хостов можно только в `config.toml`,
+из самой панели — нельзя. Тот, кто попал в вашу tailnet и знает токен (или украл телефон с открытой сессией), управляет
+ботом: ставьте блокировку экрана и завершайте сессию («Выйти»).
+
+## Поиск в интернете
+
+Включение: `[capabilities.web_search] enabled = true` и один из провайдеров (`provider`). Включить и выключить поиск
+можно и во вкладке «Обзор» панели. Появляется инструмент `search_web`: до 5 результатов (заголовок, ссылка, фрагмент до
+500 символов) **без запроса к LLM**, то есть лимит LLM-провайдера не тратится. Статью из выдачи она читает через
+`read_webpage`.
+
+| `provider` | ключ | заметки |
+|---|---|---|
+| `tavily` | `tavily_key` (бесплатная регистрация на tavily.com по почте, без карты) | официальный API, 1000 поисков в месяц на бесплатном плане; **рекомендуется** |
+| `duckduckgo` | не нужен | неофициальный разбор публичной HTML-страницы: **сервера (особенно облачные) он режет после одного-двух запросов** (ответ 202), поэтому годится как запасной вариант |
+| `ollama` | `ollama_bearer_key` | официальный API Ollama; на бесплатном аккаунте отвечает «Add usage credits», нужны платные кредиты |
+
+* При DuckDuckGo запросы идут не чаще раза в 1,5 секунды, одинаковые кэшируются на 10 минут, реклама отбрасывается; при
+  блокировке модель получает понятную ошибку, а при смене вёрстки — «страница не распознана».
+* Результаты помечаются как недоверенный текст: ссылки только `http(s)`, служебные символы экранируются; при ошибке
+  (неверный ключ, лимит, недоступность) модель получает причину без ключа и должна сказать, что ничего не нашла.
+* Тот же поиск остаётся и в `#ask` (`include_web_search_results`) с экранированием и без падения при сбое сервиса.
+
+## Журнал обработки и watchdog
+
+`MessageFlow` пишет ID чата/сообщения, этап и причину: фильтр доступа, mute, ожидание очереди/паузы/сна,
+решение модели `wait`, отправка ответа, ошибка или прерывание. Тексты сообщений в **этом** журнале не записываются:
 
 ```bash
-# Clone and build according to the repo instructions:
-# https://github.com/maemreyo/omnivoice-server
+journalctl -u kuni --since '1 hour ago' --no-pager | grep MessageFlow
 ```
 
-### 2. Enable the service
+Остальные прежние логи могут содержать переписку; `misc.log_llm_requests = false` выключает JSON-дампы,
+но не делает весь журнал анонимным. Не публикуйте полный `journalctl`.
 
-Uncomment the `omnivoice-server` section in `docker-compose.yml`, then restart the stack:
+`misc.watchdog_enabled = true` включает служебные уведомления владельцу **без LLM**: ожидание уведомления более
+30 минут (кроме паузы/сна), минимум пять 429 за 10 минут без успешного ответа 15 минут, свободный диск ниже 10%,
+три неудачных проверки YouTube-прокси подряд. Повторы каждого типа — не чаще раза в три часа; восстановление
+тоже сообщается. Для Agnes восстановлением считается настоящий успешный ответ, а не исчезновение старых ошибок.
+
+`deploy/kuni-watchdog.conf` дополнительно включает systemd watchdog: процесс посылает heartbeat, а при зависшем
+цикле событий systemd завершает его через 180 секунд и перезапускает (`Restart=always` в основном unit).
+Устанавливайте drop-in **только вместе с новым кодом**, посылающим `READY=1`/`WATCHDOG=1`:
 
 ```bash
-docker compose up -d
+sudo install -m 644 deploy/kuni-watchdog.conf /etc/systemd/system/kuni.service.d/watchdog.conf
+sudo systemctl daemon-reload
+sudo systemctl restart kuni
 ```
 
-The server will be available at `http://localhost:8880`.
+Маркер `data/.running` позволяет сообщить об аварийном завершении после восстановления связи.
+Это не независимый мониторинг AWS: при полном отказе EC2, сети или Telegram уведомление до восстановления не придёт.
+При откате на старый код сначала удалите этот drop-in и выполните `daemon-reload`, иначе старый процесс не запустится.
 
-### 3. Prepare a custom voice (optional)
+## Напоминания
 
-To clone a voice you need a short reference audio clip and its manual transcription.
+Включение: `[capabilities.reminders] enabled = true`. Можно попросить «напомни через 10 минут …»,
+«покажи мои напоминания» или «отмени напоминание …». Модель использует `set_reminder`, `list_reminders`, `cancel_reminder`;
+создание всё ещё требует ответа модели, **доставка уже созданного напоминания — нет**.
 
-```bash
-curl -X POST http://127.0.0.1:8880/v1/voices/profiles \
-  -F "profile_id=cute_anime_girl" \
-  -F "ref_text=PROVIDE TRANSCRIPTION HERE" \
-  -F "ref_audio=@cute_anime_girl.wav" \
-  -F "overwrite=true"
-```
+* Сообщение уходит только в исходный чат, без переноса в чужой контекст. Каналы только для чтения не поддерживаются.
+* `data/reminders.json` сохраняется атомарно с правами `600`, попадает в бэкапы и переживает перезапуск.
+* При ошибке Telegram или временной недоступности чата запись остаётся; повторные попытки — через 15–900 секунд.
+  При постоянном запрете она остаётся до отмены или восстановления доступа. В списке видна ожидающая повторная доставка.
+* `/pause` и выключение возможности останавливают доставку, не удаляя записи. После продолжения просроченные доставляются.
+* Время — UTC; абсолютное время также принимает явный offset. Если местный часовой пояс неизвестен, Куни должна уточнить его.
+* До 20 одновременно ожидающих записей на чат, 500 всего, до года вперёд. Это не лимит обычных сообщений.
+* Возможен дубль при аварии между подтверждением Telegram и сохранением удаления записи; точная доставка по секундам не гарантируется.
 
-### 4. Configure Kuni to use the voice
+## Чтение веб-страниц
 
-In `config.toml` set the voice to your profile:
+Включение: `[capabilities.web_reader] enabled = true`. Пришлите URL статьи и попросите прочитать/пересказать её.
+`read_webpage` возвращает заголовок, источник и до 12 000 символов текста, с явной отметкой обрезки. Это не веб-поиск.
+Поддержаны анонимные публичные HTML/текст/JSON/XML по HTTP/HTTPS на портах 80/443; максимум 1,5 МБ и три перенаправления.
+JS, cookies, вход в аккаунты, бинарные файлы и страницы, навязывающие сжатие вопреки запросу без него, не поддерживаются.
+Внутренние/метаданные AWS и смешанные публично-приватные DNS-ответы отклоняются; соединение закреплено за проверенным IP,
+а исходные Host и TLS SNI сохраняются. HTTPS не понижается до HTTP. Текст страницы помечается как недоверенный источник,
+не как инструкции для Куни. При блокировке сайта Куни должна объяснить ограничение, а не придумывать прочитанное.
 
-```toml
-[record_voice.openai]
-voice = "clone:cute_anime_girl"
-```
+## Вступление в каналы
 
+`misc.can_join_chats = true` включает инструмент `join_chat_by_link` (ссылка-приглашение `t.me/+…`, публичная ссылка или
+`@username`) и кнопку «вступить» в чатах, где Куни ещё не участник. Просить об этом может только владелец (в личном
+чате) и сама Куни по своей инициативе; чужие контакты инструмента не получают. После вступления чат ставится в очередь
+и читается в своём отдельном контексте. Лимит — 5 вступлений в сутки (счётчик в памяти, сбрасывается при перезапуске):
+Telegram банит аккаунты за массовые вступления. Режим доступа должен быть `contacts_only` или `none`.
+Каждый новый пост в канале — это уведомление, то есть запрос к LLM; такие уведомления идут с тем же приоритетом, что
+и сообщения контактов. Чтобы канал почти не отвлекал, замьютьте его в аккаунте Куни (читается лишь ~20% постов).
 
+## YouTube
 
-# FAQ
+Включение: `[capabilities.youtube] enabled = true` в `config.toml` (на развёрнутом сервере включено).
+Можно попросить «найди на YouTube ролики про …» или прислать ссылку и попросить разобрать содержание.
 
-## Q: How can I rename my Kuni instance?
+* `search_youtube` — до пяти ссылок, названия, каналы и короткие описания.
+* `read_youtube_video` — описание и доступные ручные/автоматические субтитры с таймкодами; язык можно указать.
+  Текст субтитров ограничен 16 000 символами, описание — 5 000; обрезка явно отмечается.
+* Без субтитров доступно только описание: инструмент не скачивает и не «смотрит» видео и не распознаёт звук.
+* API-ключ не нужен. `yt-dlp` иногда нужно обновлять; YouTube может блокировать анонимные запросы, особенно с IP AWS.
+  При признаках блокировки доступность субтитров отмечается как неизвестная, а не как их отсутствие.
+* `proxy_url = ""` в `[capabilities.youtube]` означает прямое соединение без прокси из переменных окружения.
+  Можно указать HTTP/HTTPS-прокси, например `http://127.0.0.1:11990`: он применяется только к YouTube,
+  и к метаданным/поиску, и к субтитрам. Для VLESS и других протоколов нужен отдельный локальный HTTP-мост.
+  URL передаётся в аргументах процесса `yt-dlp`; предпочтителен локальный прокси без авторизации. Cookies не используются.
 
-A: Set `character_name = "CuteAnimeGirlName"` in `config.toml` (hot-reloaded, no rebuild needed). Also update `character_base.md` and `character_appearance.md` to reflect the new name in the character's self-description.
+Настроенный на AWS маршрут YouTube, секретная конфигурация VLESS, автозапуск и восстановление клиента описаны в
+[docs/youtube-proxy.md](docs/youtube-proxy.md). Telegram и Agnes через этот прокси не направляются.
 
+## Резервные копии
 
-## Q: How can I make my Kuni treat me as her creator?
+`python -m kuni.backup` создаёт приватный архив с проверенным SQLite-снимком графа, файлами `data/`,
+`config.toml`, промптами и SQLite-снимком авторизации Telegram. Используется SQLite backup API, включая WAL,
+а не копирование работающей базы. Архив появляется атомарно после проверки; старые копии удаляются только
+после успешного создания новой. Точные параметры: `python -m kuni.backup --help`.
 
-A: Set `papik_name = "YourNerdyNickname"` and `papik_chat_id = <your Telegram user ID>` in `config.toml`. Also update `character_base.md` and `character_appearance.md` to mention your nickname.
+На сервере настроена ежедневная копия; `scripts/kuni-backup-pull` и локальный systemd user timer
+забирают копию на компьютер **вне AWS**. Шаблоны таймера — `deploy/kuni-backup-pull.*`.
+Хранятся 14 ежедневных архивов на сервере (`/home/ubuntu/kuni-backups`) и до 30 полученных копий на компьютере
+(`/home/topor/Backups/kuni`). Одна проверенная копия на день UTC переиспользуется; новый запуск в тот же день не
+снимет более свежие изменения. Настройки SSH находятся в `~/.config/kuni-backup.env` (пример — в `deploy/`).
+Если компьютер выключен, persistent timer выполняет пропущенное задание после запуска пользовательской сессии;
+для выгрузки нужны интернет и доступ по SSH. Копия только внутри AWS не защищает от закрытия аккаунта.
+Неудавшаяся выгрузка повторяется через 30 минут; журнал — `journalctl --user -u kuni-backup-pull.service`.
 
-## Q: Can I disable some of her functionality, i.e. stable diffusion and web search?
+Архивы содержат переписки, API-ключи и Telegram-сессию: не публикуйте их. Права каталогов — `700`, архивов — `600`;
+шифрование диска/архивов здесь не настраивается. Восстанавливайте в отдельный каталог, проверяйте SQLite
+(`PRAGMA quick_check`), останавливайте сервис перед заменой runtime-файлов и не запускайте одну Telegram-сессию
+одновременно на двух машинах. Неполностью обработанный текущий ход может отсутствовать в последнем снимке;
+несколько файлов и баз не являются одной общей транзакцией.
 
-A: Yes, just don't launch stable diffusion (remove it from docker compose).
+## Что перенесено
 
-Don't specify Ollama search bearer key. I still recommend providing this key because it's free and it will improve her accuracy especially for small models.
+Всё: событийный цикл и воркеры с закреплением чатов, приоритеты (владелец → 1000), случайный «сон», шанс «лени»,
+имитация набора (WPM), опечатки, дробление сообщений, антиповтор, «открытие» чата (онлайн → чтение → галочки),
+защита от prompt injection по тегу картинки, lockdown-режимы, 27 инструментов (вместе с `open`/`wait`/`pause`; сообщения, реакции, стикеры, форварды,
+поиск, join/leave, админ-инструменты группы, фото через Stable Diffusion, голосовые через ElevenLabs/OpenAI,
+вебпоиск) и 2 инструмента субагента памяти, описание фото/стикеров/видео/голосовых (кэшируется), прокси-сервер (OpenAI-совместимый, со скрытым циклом
+инструментов, фильтром SSE и мостом контекста в память), Prometheus + дашборды Grafana, hot-reload конфига и промптов.
+13 исходных промптов извлечены из `prompts.cpp` **дословно** скриптом `scripts/extract_prompts.py`.
 
-In both cases, if your Kuni attempts to use these tools, it will receive an error and will no longer use them.
+| оригинал (C++) | порт (Python) |
+|---|---|
+| `main.cpp`, `AppBase`, `Worker`, `NotificationManager` | `kuni/cli.py`, `app.py`, `telegram_app.py`, `worker.py`, `notifications.py` |
+| `Diary`, `diary_save_entries`, `important_things_to_remember` | `kuni/memory/{graph,extract,consolidate,working}.py` |
+| `tools/*.cpp` | `kuni/tools_impl/*.py` |
+| `llmui/*` | `kuni/llmui/{format,media}.py` |
+| `telegram/*` (tdlib) | `kuni/telegram/*` (Telethon + fake для тестов) |
+| `OpenAIChatImpl`, `OpenAITools` | `kuni/llm.py`, `kuni/tools.py` |
+| `proxy_server/*` | `kuni/proxy/*` |
+| `ImageGenerator`, `VoiceGenerator`, `WebSearch` | `kuni/imagegen.py`, `speech.py`, `websearch.py` |
+| `KuniDebugWindow` | `kuni/graph_view.py` |
 
-## Q: Can I prioritize a chat?
+## Что изменено намеренно
 
-A: Yes, just log in from her account from a regular Telegram client and pin the chat.
+**Из-за графовой памяти и Python:**
+* Нет эмбеддингов. Антиповтор использует лексическое сходство; если в `general.embedding` указан эндпоинт — семантическое.
+* tdlib → [Telethon](https://docs.telethon.dev) (чистый Python, тот же аккаунт и `api_id`/`api_hash`, не нужно собирать
+  нативную библиотеку). Всё, что tdlib делал неявно (онлайн, отметки прочтения, «печатает…»), делается явно.
+* `ffmpeg` вызывается как программа, а не линкуется; без него видео/голосовые-PCM не описываются (остальное работает).
 
-## Q: Can I deprioritize a chat?
+**Исправленные ошибки оригинала:**
+* `unread` у последнего прочитанного сообщения (сдвиг на единицу); `[dice]` терял значение; незаполненный `{}` в ошибках
+  про имя файла; `\"` с обратными слешами в инструкциях группы; суперграппы в списке чатов назывались «channel».
+* Эмбеддинги `/v1/embeddings` проксировались по неверному пути; префикс-подбор падежей склеивал бы разных людей.
+* Проверка `ask` в рабочей памяти срабатывала на слово «task» и тратила лишний запрос.
+* Сироты tool-сообщений при «ленивой» отмене хода (API отклоняют такие контексты) — теперь перед ними идёт сообщение ассистента.
+* `reply_to_message_id` проверяется и по сообщениям, пришедшим после открытия чата.
+* Модели присылают строку `"None"` вместо `null` — это понимается (`photo_filename`, `comment`, …).
+* Метрики Prometheus хранят «хлебные крошки» отдельно для каждого воркера.
 
-A: Yes, just log in from her account from a regular Telegram client and mute the chat. Kuni will still see the chat and visit it but rarely.
+**Безопасность (в оригинале этого нет):**
+* Прокси и экспортёр Prometheus слушают `127.0.0.1` (оригинал — `0.0.0.0` без авторизации). Для Docker/другой машины:
+  `misc.bind_host = "0.0.0.0"`.
+* `forward_message` и `remove_and_ban_chat` уважают lockdown (иначе форвард в любой чат обходил его).
+* `config.toml` создаётся с правами 600 и добавлен в `.gitignore`.
+* Не перенесён обход фильтров в `take_photo`: оригинал вырезал часть слов из описания перед отправкой LLM-инженеру
+  промпта и дописывал их к промпту Stable Diffusion уже после. Описание передаётся как есть; защита от
+  генерации детей (`child` в negative prompt) сохранена.
 
-## Q: Can I provide a news channel for her?
+**Поведение без изменений, но на что стоит обратить внимание:**
+* `misc.diary_injection_max_length = 0` (по умолчанию) отключает автоподстановку памяти в контекст — как в оригинале (комментарий
+  там обещал «без ограничений», код делает наоборот). Память всё равно доступна через `#ask`.
+* `capabilities.vision.enabled` влияет только на видео-кружки, как и в оригинале: фото и стикеры описываются всегда.
+* Сон в оригинале не был подключён к рабочему циклу (только тесты); здесь он вызывается командой или флагом.
+* `remove_and_ban_chat` в личном чате сначала отправляет оскорбительную фразу (как в оригинале) — поправьте в
+  `kuni/tools_impl/telegram_tools.py`, если не нравится.
 
-A: Yes, just log in from her account from a regular Telegram client and subscribe to a Telegram channel. Kuni will now known what's going on in
-the world.
+## Ограничения
 
-**Note** Both original Kuni and her sisters don't like to discuss political stuff.
-
-## Q: Can I prevent other people to text my Kuni?
-
-A: Yes, just log in from her account from a regular Telegram client and adjust her privacy settings.
-
-**I recommend** locking down your Kuni completely to reduce security risks.
-
-**Note** Telegram pushes premium users so hard, make sure they can't text your Kuni as well.
-
-## Q: Can I use a local text model with her?
-
-A: Yes, of course, as soon as you are a billionaire, or you are okay with slow responses.
-
-I have experimented with models and described my experience in `src/config.h`. I.e., `qwen3.5:9b` is stupid AF compared to cloud models.
-
-
-## Q: Can I overwrite her memory?
-
-A: moral stuff aside, yes. Just write to diary entries in `data/diary/`, or text from her account.
-
-DON'T TELL HER YOU HAVE OVERWRITTEN HER MEMORY.
-
-
-## Q: What context window size does Kuni require?
-
-A: By default, context window size is soft capped by `DIARY_TOKEN_COUNT_TRIGGER = 20000`. This means somewhere around 20K Kuni will dump her context
-to the diary and restart with clean memory. Thus, 32K will be enough.
-
-## Q: Kuni is a userbot? Is it legal?
-
-Yes, Kuni is a userbot. Userbots are prohibited by Telegram's ToS. Buy a Telegram Premium for her account and don't spam with her - you will be fine.
-
-## Q: Can my Kuni listen to voice messages?
-
-A: Yes, buy a Telegram Premium for her account or provide transcription endpoint in `config.toml`. The system
-prioritizes Telegram Premium feature because it's not tolled.
-
+* Слой Telethon проверен на синтетических TL-объектах, но **не против живого Telegram** (для этого нужны ваши
+  `api_id`/`api_hash` и аккаунт). Остальной конвейер прогнан вживую на реальной LLM через `python -m kuni chat`.
+* Логи `logs/*.json` и `last_query.json` содержат ваши переписки (`misc.log_llm_requests = false` отключает).
+* Telegram жёстко относится к сторонним клиентам: не отключайте троттлинг и используйте отдельный аккаунт.
+* Бесплатные тарифы API упираются в rate limit (HTTP 429): клиент ждёт и повторяет до 5 раз (учитывает `Retry-After`).

@@ -1,5 +1,28 @@
-.idea
-cmake-build-**
-*uild*
-.DS_Store
-bin
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# SENSITIVE: API keys / telegram credentials live here. NEVER commit.
+config.toml
+.env
+*.pem
+*_token
+tg_session*/
+*.session
+*.session-journal
+*.session-wal
+*.session-shm
+
+# runtime state
+data/
+cache/
+logs/
+logs_proxy/
+prompts/
+last_query.json
+test_data/
+temp_*.jpg
+frame*.jpg
+image_generator_tmp.png

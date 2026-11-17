@@ -1,0 +1,19 @@
+[Unit]
+Description=Kuni YouTube-only local proxy
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=ubuntu
+UMask=0077
+# shortcut: one selected subscription node; refresh the private config if the provider changes it.
+ExecStart=/home/ubuntu/.local/bin/kuni-xray run -config /home/ubuntu/kuni-py/data/youtube_proxy/config.json
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

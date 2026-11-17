@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Куни — панель</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <section id="login" hidden>
+    <h1>Куни</h1>
+    <p>Вход по токену. Обычно открывается сам через <code>scripts/kuni-web</code>.</p>
+    <form id="login-form">
+      <input id="token" type="password" autocomplete="off" placeholder="токен" required>
+      <button type="submit">Войти</button>
+    </form>
+    <p id="login-error" class="bad"></p>
+  </section>
+
+  <main id="panel" hidden>
+    <header>
+      <h1>Куни</h1>
+      <span id="badge" class="badge"></span>
+      <span id="version" class="muted"></span>
+      <button id="logout" class="ghost">Выйти</button>
+    </header>
+    <div id="toast" role="status"></div>
+    <nav id="tabs">
+      <button data-tab="overview" class="active">Обзор</button>
+      <button data-tab="turns">Ходы</button>
+      <button data-tab="access">Доступ</button>
+      <button data-tab="channels">Каналы</button>
+      <button data-tab="memory">Память</button>
+      <button data-tab="api">API</button>
+      <button data-tab="backups">Бэкапы</button>
+      <button data-tab="logs">Журнал</button>
+    </nav>
+
+    <div class="tab" id="tab-overview">
+      <div id="cards" class="grid"></div>
+      <h2>Управление</h2>
+      <div class="row">
+        <button id="btn-pause"></button>
+        <button id="btn-wake">Разбудить</button>
+        <button id="btn-proactive">Подумать самой</button>
+        <button id="btn-clear" class="warn">Очистить очередь</button>
+        <button id="btn-restart" class="danger">Перезапустить</button>
+      </div>
+      <h2>Настройки</h2>
+      <div id="settings"></div>
+      <h2>Воркеры</h2>
+      <div id="workers"></div>
+      <h2>Очередь</h2>
+      <div id="queue"></div>
+      <h2>Напоминания</h2>
+      <div id="reminders"></div>
+      <h2>Написать от имени Куни</h2>
+      <form id="send-form" class="row">
+        <input id="send-chat" type="number" step="1" placeholder="chat_id" required>
+        <input id="send-text" type="text" maxlength="4000" placeholder="текст сообщения" required>
+        <button type="submit">Отправить</button>
+      </form>
+    </div>
+
+    <div class="tab" id="tab-turns" hidden>
+      <p class="muted">Что она делала на последних ходах: мысли, инструменты и чем закончилось. Хранится в памяти процесса, после перезапуска очищается.</p>
+      <div class="split"><div id="turn-chats"></div><div id="turn-view"><p class="muted">Выберите чат слева.</p></div></div>
+    </div>
+
+    <div class="tab" id="tab-access" hidden>
+      <p class="muted">Владелец всегда допущен. Белый список даёт доступ вопреки режиму «только контакты / только владелец»; чёрный закрывает чат полностью в любом режиме.</p>
+      <h2>Недавно отклонены режимом доступа</h2>
+      <div id="denied"></div>
+      <h2>Разрешены</h2>
+      <div id="list-allowed"></div>
+      <h2>Заблокированы</h2>
+      <div id="list-blocked"></div>
+      <form id="list-form" class="row">
+        <input id="list-chat" type="number" step="1" placeholder="chat_id" required>
+        <select id="list-which"><option value="allowed">разрешить</option><option value="blocked">заблокировать</option></select>
+        <button type="submit">Добавить</button>
+      </form>
+    </div>
+
+    <div class="tab" id="tab-channels" hidden>
+      <div class="row"><button id="channels-refresh">Обновить</button><span class="muted">Посты каналов её не будят: она читает их сама или по кнопке.</span></div>
+      <div id="channels"></div>
+    </div>
+
+    <div class="tab" id="tab-memory" hidden>
+      <div class="row">
+        <button id="mem-dump">Сохранить память сейчас</button>
+        <button id="mem-sleep">Запустить «сон»</button>
+        <span id="mem-jobs" class="muted"></span>
+      </div>
+      <h2>Граф</h2>
+      <form id="mem-form" class="row">
+        <input id="mem-q" type="text" maxlength="100" placeholder="поиск по имени, описанию, алиасам (пусто — последние)">
+        <button type="submit">Искать</button>
+        <span id="mem-count" class="muted"></span>
+      </form>
+      <div class="split"><div id="mem-list"></div><div id="mem-node"><p class="muted">Выберите узел слева.</p></div></div>
+      <h2>Рабочая память</h2>
+      <div class="row"><select id="wm-chat"></select><button id="wm-save" class="warn">Сохранить</button></div>
+      <textarea id="wm-text" rows="12" maxlength="20000" spellcheck="false"></textarea>
+    </div>
+
+    <div class="tab" id="tab-api" hidden>
+      <p id="env-warn" class="warn-text" hidden>Задан KUNI_API_KEY или KUNI_BASE_URL: ключи из файла сейчас не используются.</p>
+      <h2>Ключи</h2>
+      <div id="keys"></div>
+      <form id="key-form" class="row">
+        <input id="key-new" type="password" autocomplete="off" placeholder="новый ключ (только запись, обратно не показывается)">
+        <button type="submit">Добавить в пул</button>
+      </form>
+      <h2>Использование</h2>
+      <div class="row">
+        <button class="range active" data-hours="24">24 ч</button><button class="range" data-hours="48">48 ч</button>
+        <button class="range" data-hours="168">7 дней</button><button class="range" data-hours="336">14 дней</button>
+      </div>
+      <canvas id="usage-chart" width="960" height="220"></canvas>
+      <p id="usage-totals" class="muted"></p>
+    </div>
+
+    <div class="tab" id="tab-backups" hidden>
+      <div class="row"><button id="backup-now">Сделать копию сейчас</button><span id="backup-note" class="muted"></span></div>
+      <div id="backups"></div>
+    </div>
+
+    <div class="tab" id="tab-logs" hidden>
+      <div class="row">
+        <button class="logtab active" data-kind="flow">Ход обработки</button>
+        <button class="logtab" data-kind="warn">Ошибки</button>
+        <button class="logtab" data-kind="all">Всё (может содержать переписку)</button>
+      </div>
+      <div id="log"></div>
+    </div>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

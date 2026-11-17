@@ -1,0 +1,353 @@
+# Kuni kernel project (Python port), https://github.com/alex2772/kuni/
+# WARNING - SENSITIVE DATA! DO NOT SHARE NOR COMMIT THIS FILE!!!
+#
+# This file contains all the settings available in Kuni's kernel.
+# To adjust prompts, go to prompts/ directory.
+# If kuni is running, it will autoreload changes to this file and prompts automatically.
+# Setting up [general] section is mandatory, everything else is optional.
+
+[general]
+
+# Used by system and other prompts, defines character name.
+#
+# Character's phylosophy and appearance can be adjusted in prompts/character_base.md and
+# prompts/character_appearance.md, respectively.
+character_name = "Kuni"
+
+# Character nickname in Telegram.
+character_nickname = "@kunii_chan"
+
+# Used by system and other prompts, defines instance owner name.
+# Should match with papik_chat_id account name.
+papik_name = "Owner"
+
+# User id of the instance owner.
+# Kuni's kernel gives several benefits to the "instance owner user":
+# - Kuni can't ban instance owner
+# - Messages from instance owner are prioritized (processed ASAP)
+# - A message from instance owner wakes up Kuni if she sleeps
+#
+# Your user id can be obtained by @getmyid_bot, @raw_data_bot or @userinfobot.
+papik_chat_id = 0  # REQUIRED for Telegram mode: your own Telegram user id
+
+# Your Telegram account. Nothing here is a default for somebody else: the session is created on first run in tg_session/
+# (never commit it) and papik_chat_id above must be YOUR user id.
+#
+# Telegram API key, see
+# https://core.telegram.org/api/obtaining_api_id
+telegram_api_id = 0
+
+# Telegram API hash, acquired on the same page as telegram_api_id.
+telegram_api_hash = ""
+
+# Whether to enable the Telegram bot. If set to false, Kuni will run in standalone mode
+# (useful if you only want to use the proxy server without a Telegram account).
+telegram_enabled = true
+
+# Main LLM endpoint. Any OpenAI-compatible API. PUT YOUR API KEY AND BASE URL HERE:
+#
+# - baseUrl:  any OpenAI-compatible server: "https://api.openai.com/v1/", "https://openrouter.ai/api/v1/",
+#             "http://localhost:11434/v1/" (local Ollama, no key needed), "https://apihub.agnes-ai.com/v1/"
+# - bearerKey: your API key (or set env KUNI_API_KEY, it wins over this file)
+# - extraBearerKeys: optional array of additional keys for this same endpoint; shared quotas may still apply
+# - model: model id
+# - reasoningEffort: "low" | "medium" | "high" (sent as `reasoning_effort`), "" to not send it
+#
+# Env overrides: KUNI_BASE_URL, KUNI_API_KEY, KUNI_MODEL, KUNI_REASONING_EFFORT.
+llm = { endpoint = { baseUrl = "https://apihub.agnes-ai.com/v1/", bearerKey = "" }, model = "agnes-3.0-flash", reasoningEffort = "high" }
+
+# OPTIONAL embeddings endpoint. The memory is a graph and does not need embeddings.
+# If set, it's used only by the anti-repeat check (semantic similarity); if baseUrl is empty,
+# a lexical similarity is used instead.
+embedding = { endpoint = { baseUrl = "", bearerKey = "" }, model = "" }
+
+# Whether other users can access Kuni.
+# Restricted users will be ignored.
+# LLM will see allowed chats only.
+#
+# - "none" Kuni will be publicly available (everyone can access her)
+# - "contacts_only" only Kuni's contacts can access her
+# - "papik_only" papik_chat_id is the only one who can access her
+lockdown = "papik_only"
+
+# AI replies and proactive activity are paused; owner commands still work.
+paused = false
+
+# Chat ids that may talk to Kuni even under contacts_only / papik_only (the owner is always allowed),
+# and chat ids she never reads or answers in any mode (the owner cannot be blocked). Editable in the web panel.
+allowed_chat_ids = []
+blocked_chat_ids = []
+
+[misc]
+
+# Allows Kuni to text a completely new person Kuni didn't have a prior dialog with.
+# This defaults to false to avoid using Kuni as spam bot.
+can_write_to_a_new_person = false
+
+# If true, the pinned chats will wake up Kuni as soon as a message receives. If set to false, only the
+# PAPIK_CHAT_ID will be able to do so.
+#
+# The instance owner (also known as PAPIK) can pin chats from Kuni's Telegram account with his friends so Kuni's
+# tokens preservation mechanisms (sleep) are not applied to them.
+wake_up_on_pinned_chat = false
+
+# If true, Kuni will randomly go to sleep after some time of inactivity to save LLM tokens.
+# While sleeping, Kuni won't respond to messages (except from papik_chat_id).
+randomly_go_sleep = true
+
+# Probability (0.0-1.0) that Kuni will be reminded about available tools in a given message.
+# Helps prevent Kuni from forgetting she has tools like record audio or photo generation.
+tool_reminder_probability = 0.02
+
+# When the conversation context exceeds this token count, Kuni dumps her memory to the graph
+# and restarts with a clean context. Keeps context window usage under control.
+# Requires context window >= this value + some headroom.
+diary_token_count_trigger = 40000
+
+# Maximum number of characters of memory (diary pages) automatically injected into the context per
+# message. 0 DISABLES automatic injection (Kuni still reaches the memory through #ask).
+diary_injection_max_length = 0
+
+# Similarity threshold (0.0-1.0) above which a new diary page is considered a duplicate
+# of an existing one and will not be saved. Prevents redundant memories.
+diary_plagiarism_threshold = 0.97
+
+# Minimum relatedness (0.0-1.0) for a memory to be injected into context.
+diary_min_relatedness = 0.8
+
+# Maximum number of characters loaded per chat loaded.
+# Older messages beyond this limit are omitted.
+chat_max_history_length = 2000
+
+# LLM sampling temperature. Higher = more creative/random, lower = more deterministic.
+# "none" to use the model's default.
+llm_temperature = 0.2
+
+# LLM nucleus sampling (top-p). Limits token selection to the top cumulative probability mass.
+# "none" to use the model's default.
+llm_top_p = "none"
+
+# LLM top-k sampling. Limits token selection to the k most likely tokens.
+# "none" to use the model's default.
+llm_top_k = "none"
+
+# LLM min-p sampling. Filters tokens below a minimum probability relative to the top token.
+# "none" to use the model's default.
+llm_min_p = "none"
+
+# LLM presence penalty. Positive values discourage the model from repeating topics already mentioned.
+# "none" to use the model's default.
+presence_penalty = "none"
+
+# LLM repetition penalty. Values > 1.0 penalize repeated tokens.
+# "none" to use the model's default.
+repetition_penalty = "none"
+
+# Maximum similarity threshold for the anti-repeat mechanism.
+# If the new response is too similar to a recent one (above this threshold), it is rejected.
+anti_repeat_trigger_max = 0.95
+
+# Average similarity threshold for the anti-repeat mechanism.
+# Works together with anti_repeat_trigger_max to detect repetitive responses.
+anti_repeat_trigger_avg = 0.85
+
+# Number of recent responses kept in history for the anti-repeat similarity check.
+anti_repeat_max_history = 32
+
+# A value between 0.0 and 0.98 specifying chance of reading and avoiding action.
+# Greater values will make Kuni tend to read and ignore messages.
+# This was implemented as a countermeasure to spamming Kuni's DM.
+suggest_ignore_chance = 0.1
+
+# HTTP timeout (in seconds) for all outgoing requests made by Kuni's kernel
+# (LLM, TTS, stable diffusion, transcription, etc). For streaming it's the maximum silence between chunks.
+# Increase this if your LLM backend is slow to respond (reasoning models can think for a while).
+request_timeout_secs = 120
+
+# Maximum number of frames sampled from a video/GIF/video-sticker for captioning.
+video_max_frames = 16
+
+# Minimum interval (in milliseconds) between two sampled video frames.
+video_min_step_ms = 1000
+
+# Remind to use #ask tool (main memory fetch) more proactively.
+# Some LLMs forget about using this. If true, the system inserts reminders if LLM doesn't use #ask.
+remind_use_ask = true
+
+# Minimum simulated typing speed (words per minute) used to delay sending consecutive messages.
+typing_simulation_min_wpm = 120
+
+# Maximum simulated typing speed (words per minute) used to delay sending consecutive messages.
+typing_simulation_max_wpm = 150
+
+# If true, Kuni puts all unread chats to queue on program startup.
+# If false, Kuni checks chats only if a notification was received during program runtime.
+check_chats_on_startup = true
+
+# In contrast to lockdown mode, controls notifications specifically. You can set lockdown = none and
+# chat_notification_filter = contacts_only to limit notifications to contacts only, but LLM is still
+# able to freely open any chat.
+chat_notification_filter = "none"
+
+# Whether Kuni can join a telegram group chat/channel by an invite link or @username (if LLM decides to do so).
+# Only the owner's chat and Kuni's own initiative may trigger it (not other contacts), at most 5 joins per day.
+# Needs lockdown = "contacts_only" or "none": channels are not readable under "papik_only".
+can_join_chats = false
+
+# Whether Kuni can leave a telegram group chat/channel.
+can_leave_chats = true
+
+# Amount of Kuni's subpersons that process messages. 1 is totally fine.
+worker_count = 1
+
+# How many hops the graph memory activation spreads from the entities found in a query.
+memory_graph_depth = 2
+
+# Run the graph "sleep" (merge duplicates, reconcile contradictions, rewrite summaries) automatically
+# every night at ~04:00 UTC. The C++ kernel never ran it by itself; use `python -m kuni sleep` to run by hand.
+auto_sleep_consolidation = false
+
+# Interface for the proxy server and the Prometheus exporter. 127.0.0.1 = local only (safe).
+# Use 0.0.0.0 only if you really need to reach them from another machine/container.
+bind_host = "127.0.0.1"
+
+# Dump every LLM request/response to logs/*.json (contains your private chats!).
+log_llm_requests = true
+
+# Owner-only control panel on 127.0.0.1 (never exposed; reach it through an SSH tunnel: scripts/kuni-web).
+# The access token is created in data/web_panel_token. Takes effect after a restart.
+web_panel_enabled = false
+web_panel_port = 8765
+
+# Directory with the daily backup archives; the panel lists them and can create one now. Empty = disabled.
+backup_dir = ""
+
+# Extra host names the panel accepts besides localhost, e.g. ["kuni.tail1234.ts.net"] when it is published to your
+# phone with Tailscale Serve (the panel itself still listens on 127.0.0.1 only; see README).
+web_panel_extra_hosts = []
+
+# If set, requests under an extra host must carry this Tailscale identity (header set by Tailscale Serve).
+web_panel_tailscale_login = ""
+
+# Direct Telegram health alerts/recovery; external systemd watchdog is configured separately.
+watchdog_enabled = true
+
+[capabilities.web_reader]
+
+# Read public text/HTML/JSON/XML pages by URL, without JavaScript, cookies or internal network access.
+enabled = false
+
+[capabilities.reminders]
+
+# Persistent per-chat reminders, sent directly through Telegram without LLM; /pause also pauses delivery.
+enabled = false
+
+[capabilities.web_search]
+
+# Whether Kuni can search the web (tool search_web, plus #ask results).
+enabled = false
+
+# "tavily": official API, free tier (1000 searches a month), needs tavily_key; "duckduckgo": no key, but it scrapes a
+# public page and rate-limits servers after a query or two; "ollama": needs the key below and paid credits.
+provider = "tavily"
+
+# API key from https://tavily.com (free signup, no card).
+tavily_key = ""
+
+# Bearer key for the Ollama web search integration (ollama.com/api/web_search).
+ollama_bearer_key = ""
+
+[capabilities.youtube]
+
+# Anonymous video search and available subtitles; no video downloads or API key.
+enabled = false
+
+# Optional HTTP/HTTPS proxy for YouTube metadata and captions only; empty = direct, ignoring environment proxies.
+# Use a local HTTP bridge such as http://127.0.0.1:11990 for other tunnel protocols.
+proxy_url = ""
+
+[capabilities.vision]
+
+# Whether Kuni can see images/stickers. You should use a vision-capable LLM here.
+# Images/stickers are transcribed to text via LLM and passed to main LLM. Transcriptions are cached.
+enabled = false
+
+# LLM endpoint and model used to transcribe images/stickers to text.
+# Should be a vision-capable model. Empty fields inherit from general.llm. Transcriptions are cached.
+llm_image_to_text = { endpoint = { baseUrl = "", bearerKey = "" }, model = "" }
+
+# LLM endpoint and model used to transcribe videos to text.
+# Empty fields inherit from general.llm.
+llm_image_to_text_cheap = { endpoint = { baseUrl = "", bearerKey = "" }, model = "" }
+
+[capabilities.use_stickers]
+
+# Allows Kuni to save and send stickers. Requires `vision` capability.
+enabled = false
+
+[capabilities.take_photo]
+
+# Whether Kuni can generate new photos. Requires `vision` capability.
+enabled = false
+
+[capabilities.take_photo.sd]
+
+# Address to stable-diffusion deployment (AUTOMATIC1111 WebUI with --api)
+endpoint = { baseUrl = "http://localhost:7860/", bearerKey = "" }
+
+# Stable diffusion checkpoint. https://civitai.com/models/376130/nova-anime-xl
+checkpoint = "novaAnimeXL_ilV170.safetensors"
+
+[capabilities.hearing]
+
+# Whether Kuni can listen to voice messages if telegram premium is not available.
+enabled = false
+
+# Whisper-compatible endpoint used to transcribe voice messages to text
+# (POST audio/transcriptions). Used when Telegram Premium (native transcription) is not available.
+llm_audio_to_text = { endpoint = { baseUrl = "http://localhost:9000/v1/", bearerKey = "" }, model = "base" }
+
+[capabilities.record_voice]
+
+# Whether Kuni can send voice messages (text-to-speech).
+# Requires configuring a TTS backend (elevenlabs or openai).
+enabled = false
+
+# TTS backend: "elevenlabs" or "openai" (OpenAI/local OpenAI-compatible TTS service).
+backend = "elevenlabs"
+
+[capabilities.record_voice.elevenlabs]
+
+# ElevenLabs API key for TTS. Required when backend is "elevenlabs".
+key = ""
+
+# ElevenLabs voice ID to use for TTS.
+voice_id = "pPdl9cQBQq4p6mRkZy2Z"
+
+[capabilities.record_voice.openai]
+
+# OpenAI-compatible TTS API base URL. Can point to a self-hosted TTS service.
+url = "https://api.openai.com/v1/"
+
+# API key for the OpenAI TTS endpoint.
+key = ""
+
+# OpenAI TTS model name, e.g. "tts-1" or "tts-1-hd".
+model = "tts-1"
+
+# OpenAI TTS voice name, e.g. "alloy", "echo", "fable", "onyx", "nova", "shimmer".
+voice = "alloy"
+
+# TTS audio format requested from the provider. "mp3" for standard OpenAI TTS.
+# Providers that only return raw PCM: set "pcm" to transcode it to OGG/Opus (requires ffmpeg).
+response_format = "mp3"
+
+# Sample rate (Hz) of the raw PCM stream when response_format = "pcm".
+pcm_sample_rate = 24000
+
+[capabilities.proxy]
+
+# Whether to enable the built-in OpenAI-compatible proxy server (port 10434).
+# Kuni exposes an API endpoint that forwards requests through her LLM, allowing external tools
+# (e.g. VS Code Copilot) to use Kuni as a model backend.
+enabled = false

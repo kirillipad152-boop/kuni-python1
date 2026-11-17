@@ -1,0 +1,15 @@
+[Unit]
+Description=Pull a private Kuni recovery archive off the server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+# Set KUNI_BACKUP_HOST, KUNI_BACKUP_KEY, KUNI_BACKUP_REMOTE_ROOT,
+# and KUNI_BACKUP_REMOTE_DIR in this private file (mode 0600).
+EnvironmentFile=%h/.config/kuni-backup.env
+ExecStart=/usr/bin/python3 %h/Work/kuni-py/scripts/kuni-backup-pull
+TimeoutStartSec=25min
+Restart=on-failure
+RestartSec=30min
